@@ -3,6 +3,7 @@ import os
 import cgi
 from SocketServer import ThreadingMixIn
 import threading
+from PostHandler import PostHandler
 
 class case_cgi_file(object):
     '''Something runnable.'''
@@ -179,6 +180,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         # Parse the form data posted
+        print ' POst request'
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
@@ -186,27 +188,23 @@ class RequestHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE':self.headers['Content-Type'],
                      })
 
-        # Begin the response
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write('Client: %s\n' % str(self.client_address))
-        self.wfile.write('User-agent: %s\n' % str(self.headers['user-agent']))
-        self.wfile.write('Path: %s\n' % self.path)
-        self.wfile.write('Form data:\n')
-
         # Echo back information about what was posted in the form
+        form_data = {}
         for field in form.keys():
             field_item = form[field]
-            if field_item.filename:
-                # The field contains an uploaded file
-                file_data = field_item.file.read()
-                file_len = len(file_data)
-                del file_data
-                self.wfile.write('\tUploaded %s as "%s" (%d bytes)\n' % \
-                        (field, field_item.filename, file_len))
-            else:
-                # Regular form value
-                self.wfile.write('\t%s=%s\n' % (field, form[field].value))
+
+            form_data[field] = form[field].value
+        print form_data
+
+        p_handler = PostHandler()
+
+        if(p_handler.handle(form_data)==0):
+            self.handle_error("Post Function Not Implemented",768)
+
+
+
+        self.send_response(200)
+        self.end_headers()
         return
 
     def create_page(self):
@@ -237,9 +235,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             err = "'{0}' cannot be read: {1}".format(self.path, msg)
             self.handle_error(err)
 
-    def handle_error(self,msg):
+    def handle_error(self,msg,status = 404):
         content = self.Error_Page.format(path=self.path, msg=msg)
-        self.send_content(content,"html",404)
+        self.send_content(content,"html",status)
 
     def generate_http_response(self,content,file_type="html"):
         print "response file - "+file_type+"\n"
@@ -262,5 +260,6 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 if __name__ == '__main__':
     serverAddress = ('localhost',8980)
     server = ThreadedHTTPServer(serverAddress, RequestHandler)
+    print 'Running at '+str(serverAddress)
     print 'Starting server, use <Ctrl-C> to stop'
     server.serve_forever()
