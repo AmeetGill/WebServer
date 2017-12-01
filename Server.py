@@ -4,6 +4,7 @@ import cgi
 from SocketServer import ThreadingMixIn
 import threading
 from PostHandler import PostHandler
+from TemplateEngine import TemplateEngine
 
 class case_cgi_file(object):
     '''Something runnable.'''
@@ -38,7 +39,7 @@ class case_no_file():
         return not os.path.exists(handler.full_path)
 
     def act(self, handler):
-        raise ServerException("'{0}' not found".format(handler.path))
+        handler.handle_error("Page Not Found")
 
 class case_existing_file():
 
@@ -139,7 +140,7 @@ class RequestHandler(BaseHTTPRequestHandler):
           </body>
         </html>
         '''
-    Cases = [case_no_file(),case_existing_file(),case_directory_index_file(),case_directory_no_index_file(),case_cgi_file(),case_always_fail()]
+    Cases = [case_no_file(),case_cgi_file(),case_existing_file(),case_directory_index_file(),case_directory_no_index_file(),case_always_fail()]
 
     def list_dir(self, full_path):
         colors = ["success","danger","info","warning","active"]
@@ -158,7 +159,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_content(page,"html")
 
         except OSError as msg:
-            msg = "'{0}' cannot be listed: {1}".format(self.path, msg)
+            msg = "'{0}' Cannot Be Listed: {1}".format(self.path, msg)
             self.handle_error(msg)
 
     def do_GET(self):
@@ -236,7 +237,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.handle_error(err)
 
     def handle_error(self,msg,status = 404):
-        content = self.Error_Page.format(path=self.path, msg=msg)
+        t_engine = TemplateEngine()
+        content = t_engine.create_error_page(msg,status)
+        #content = self.Error_Page.format(path=self.path, msg=msg)
         self.send_content(content,"html",status)
 
     def generate_http_response(self,content,file_type="html"):
